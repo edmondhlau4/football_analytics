@@ -1,90 +1,88 @@
-# nflscraPy-based PFR Scraper (Rate-Limited)
+# Football Analytics
 
-Uses the open-source library `nflscraPy` to scrape Pro-Football-Reference (PFR) while enforcing a global rate limit (default 8 requests/minute).
+A Python toolkit for scraping and analyzing NFL player and season statistics from [FootballDB.com](https://www.footballdb.com).
 
-## Setup
+## Overview
+
+This repository provides two scrapers and a CSV-to-DataFrame converter for working with NFL stats data:
+
+- **Player scraper** — fetch career stats for a specific player by name
+- **Season scraper** — fetch leaderboard stats across all players for a given season, year, and stat category
+- **CSV converter** — load scraped CSV output into pandas DataFrames for analysis
+
+## Requirements
+
+- Python 3.8+
+- Dependencies listed in `requirements.txt`
+
+Install dependencies:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r /Users/edmondlau/fantasyfootball/requirements.txt
+pip install -r requirements.txt
 ```
 
 ## Usage
 
-### Player stats (per boxscore)
+### Player Scraper
 
-Roster for one game:
-
-```bash
-python /Users/edmondlau/fantasyfootball/scraper.py \
-  --mode player \
-  --stat roster \
-  --boxscore-url https://www.pro-football-reference.com/boxscores/201802040nwe.htm \
-  --output roster.csv
-```
-
-Snap counts for multiple games:
+Scrape stats for a specific NFL player:
 
 ```bash
-python /Users/edmondlau/fantasyfootball/scraper.py \
-  --mode player \
-  --stat snap_counts \
-  --boxscore-url https://www.pro-football-reference.com/boxscores/201802040nwe.htm \
-  --boxscore-url https://www.pro-football-reference.com/boxscores/201801210nwe.htm \
-  --output snap_counts.csv
+python scraper/player_scraper.py "Patrick Mahomes"
 ```
 
-### Team stats (per boxscore)
+Output is saved to `scraper/player_output/`.
 
-Team statistics for a game:
+### Season Scraper
+
+Scrape leaderboard stats for a given stat type, year, and season:
 
 ```bash
-python /Users/edmondlau/fantasyfootball/scraper.py \
-  --mode team \
-  --stat statistics \
-  --boxscore-url https://www.pro-football-reference.com/boxscores/201802040nwe.htm \
-  --output team_stats.csv
+python scraper/season_scraper.py --stat passing --year 2025 --season regular-season
+python scraper/season_scraper.py --stat rushing --year 2024
+python scraper/season_scraper.py --stat receiving --season preseason
 ```
 
-Expected points for a game:
+**Supported stat types:** `passing`, `rushing`, `receiving`, `scoring`, `defense`, `kicking`, `punting`, `returns`
+
+**Supported season types:** `regular-season`, `preseason`, `postseason`
+
+Output is saved to `scraper/season_output/`.
+
+### CSV Converter
+
+Load scraped CSVs into pandas DataFrames:
 
 ```bash
-python /Users/edmondlau/fantasyfootball/scraper.py \
-  --mode team \
-  --stat expected_points \
-  --boxscore-url https://www.pro-football-reference.com/boxscores/201802040nwe.htm \
-  --output expected_points.csv
+python csv_converter.py
 ```
 
-Scoring summary for a game:
+Or use it as a module:
 
-```bash
-python /Users/edmondlau/fantasyfootball/scraper.py \
-  --mode team \
-  --stat scoring \
-  --boxscore-url https://www.pro-football-reference.com/boxscores/201802040nwe.htm \
-  --output scoring.csv
+```python
+from csv_converter import load_season_csv, load_player_csv
+from csv_converter import load_all_season_csvs, load_all_player_csvs
+
+# Load a single season CSV into a DataFrame
+df = load_season_csv("scraper/season_output/passing_2025_regular-season.csv")
+
+# Load a player CSV into a dict of DataFrames (one per stat section)
+player_dfs = load_player_csv("scraper/player_output/patrick-mahomes.csv")
+
+# Load all season or player CSVs at once
+season_data = load_all_season_csvs()
+player_data = load_all_player_csvs()
 ```
 
-### Team season splits (not a boxscore)
+## Project Structure
 
-```bash
-python /Users/edmondlau/fantasyfootball/scraper.py \
-  --mode team \
-  --stat season_splits \
-  --season 2024 \
-  --team jax \
-  --splits-side For \
-  --output jax_2024_splits.csv
 ```
-
-## Rate limiting
-
-- Default is 8 requests/minute (`--rate-per-min 8`).
-- `nflscraPy` itself sleeps between requests; this script adds a global throttle between calls for safety.
-
-## Notes
-
-- PFR may block aggressive scraping; keep the rate low and cache results.
-- You can feed URLs from a file using `--boxscore-file` (one URL per line).
+football_analytics/
+├── scraper/
+│   ├── player_scraper.py     # Scrapes individual player stats
+│   ├── season_scraper.py     # Scrapes season leaderboard stats
+│   ├── player_output/        # CSV output from player scraper
+│   └── season_output/        # CSV output from season scraper
+├── csv_converter.py          # Loads CSV output into pandas DataFrames
+└── requirements.txt
+```
