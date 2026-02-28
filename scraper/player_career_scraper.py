@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 NFL Player Stats Scraper for FootballDB.com
-Usage: python player_scraper.py "Player Name"
+Usage: python player_career_scraper.py "Player Name"
 """
 
 import requests
@@ -358,10 +358,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python player_scraper.py "Patrick Mahomes"
-  python player_scraper.py "Christian McCaffrey" --season regular
-  python player_scraper.py "Tom Brady" --season postseason
-  python player_scraper.py "Josh Allen" --season all
+  python player_career_scraper.py "Patrick Mahomes"
+  python player_career_scraper.py "Christian McCaffrey" --season regular
+  python player_career_scraper.py "Tom Brady" --season postseason
+  python player_career_scraper.py "Josh Allen" --season all
 
 Season Types:
   regular    - Regular season games only (default)

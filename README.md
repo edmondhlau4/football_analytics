@@ -30,7 +30,7 @@ pip install -r requirements.txt
 Scrape stats for a specific NFL player:
 
 ```bash
-python scraper/player_scraper.py "Patrick Mahomes"
+python scraper/player_career_scraper.py "Patrick Mahomes"
 ```
 
 Output is saved to `scraper/player_career_output/`.
@@ -104,7 +104,7 @@ player_data = load_all_player_csvs()
 ```
 football_analytics/
 ├── scraper/
-│   ├── player_scraper.py     # Scrapes individual player stats
+│   ├── player_career_scraper.py     # Scrapes individual player stats
 │   ├── season_scraper.py     # Scrapes season leaderboard stats
 │   ├── fantasy_scraper.py    # Scrapes weekly PPR fantasy points
 │   ├── player_career_output/        # CSV output from player scraper
