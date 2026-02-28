@@ -17,9 +17,10 @@ import pandas as pd
 import csv
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent
 SEASON_OUTPUT_DIR = BASE_DIR / 'scraper' / 'season_output'
 PLAYER_OUTPUT_DIR = BASE_DIR / 'scraper' / 'player_output'
+FANTASY_POINTS_DIR = BASE_DIR / 'scraper' / 'fantasy_points'
 
 
 def load_season_csv(filepath) -> pd.DataFrame:
@@ -71,6 +72,22 @@ def load_all_season_csvs() -> dict:
     return {path.stem: load_season_csv(path) for path in sorted(SEASON_OUTPUT_DIR.glob('*.csv'))}
 
 
+def load_fantasy_csv(filepath) -> pd.DataFrame:
+    """Load a flat fantasy points CSV into a DataFrame."""
+    return pd.read_csv(filepath)
+
+
+def load_all_fantasy_csvs() -> dict:
+    """
+    Load all CSVs from scraper/fantasy_points/.
+    Returns a dict keyed by filename stem (e.g., 'fantasy_QB_week12_2025').
+    """
+    if not FANTASY_POINTS_DIR.exists():
+        print(f"Directory not found: {FANTASY_POINTS_DIR}")
+        return {}
+    return {path.stem: load_fantasy_csv(path) for path in sorted(FANTASY_POINTS_DIR.glob('*.csv'))}
+
+
 def load_all_player_csvs() -> dict:
     """
     Load all CSVs from scraper/player_output/.
@@ -94,6 +111,7 @@ Examples:
   python csv_converter.py --list
   python csv_converter.py --season passing_regular-season_2025
   python csv_converter.py --player patrick_mahomes_stats
+  python csv_converter.py --fantasy fantasy_QB_week12_2025
   python csv_converter.py --season passing_regular-season_2025 rushing_regular-season_2025 --player josh_allen_stats
         """
     )
@@ -101,6 +119,8 @@ Examples:
                         help='Season CSV filename(s) to load (without .csv extension)')
     parser.add_argument('--player', nargs='+', metavar='FILE',
                         help='Player CSV filename(s) to load (without .csv extension)')
+    parser.add_argument('--fantasy', nargs='+', metavar='FILE',
+                        help='Fantasy points CSV filename(s) to load (without .csv extension)')
     parser.add_argument('--list', action='store_true',
                         help='List all available CSV files and exit')
     args = parser.parse_args()
@@ -108,6 +128,7 @@ Examples:
     if args.list:
         season_files = sorted(SEASON_OUTPUT_DIR.glob('*.csv')) if SEASON_OUTPUT_DIR.exists() else []
         player_files = sorted(PLAYER_OUTPUT_DIR.glob('*.csv')) if PLAYER_OUTPUT_DIR.exists() else []
+        fantasy_files = sorted(FANTASY_POINTS_DIR.glob('*.csv')) if FANTASY_POINTS_DIR.exists() else []
         print("Season files (scraper/season_output/):")
         for f in season_files:
             print(f"  {f.stem}")
@@ -118,7 +139,23 @@ Examples:
             print(f"  {f.stem}")
         if not player_files:
             print("  (none)")
+        print("\nFantasy points files (scraper/fantasy_points/):")
+        for f in fantasy_files:
+            print(f"  {f.stem}")
+        if not fantasy_files:
+            print("  (none)")
     else:
+        if args.fantasy:
+            print("=== Fantasy Points ===")
+            for name in args.fantasy:
+                path = FANTASY_POINTS_DIR / f"{name}.csv"
+                if not path.exists():
+                    print(f"  File not found: {path}")
+                    continue
+                df = load_fantasy_csv(path)
+                print(f"\n{name}")
+                print(df.to_string(index=False))
+
         if args.season:
             print("=== Season Stats ===")
             for name in args.season:
@@ -143,5 +180,5 @@ Examples:
                     print(f"  [{section_name}]")
                     print(df.to_string(index=False))
 
-        if not args.season and not args.player:
+        if not args.season and not args.player and not args.fantasy:
             parser.print_help()
