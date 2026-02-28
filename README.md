@@ -4,11 +4,13 @@ A Python toolkit for scraping and analyzing NFL player and season statistics fro
 
 ## Overview
 
-This repository provides two scrapers and a CSV-to-DataFrame converter for working with NFL stats data:
+This repository provides scrapers and converters for working with NFL stats data:
 
 - **Player scraper** — fetch career stats for a specific player by name
 - **Season scraper** — fetch leaderboard stats across all players for a given season, year, and stat category
+- **Fantasy scraper** — fetch weekly PPR fantasy points by position
 - **CSV converter** — load scraped CSV output into pandas DataFrames for analysis
+- **Fantasy PPR converter** — adjust fantasy points CSVs by adding reception values to the points column
 
 ## Requirements
 
@@ -49,6 +51,29 @@ python scraper/season_scraper.py --stat receiving --season preseason
 
 Output is saved to `scraper/season_output/`.
 
+### Fantasy Scraper
+
+Scrape weekly PPR fantasy points by position:
+
+```bash
+python scraper/fantasy_scraper.py --pos QB --week 12
+python scraper/fantasy_scraper.py --year 2024 --pos WR --week 1
+python scraper/fantasy_scraper.py --pos DST --week 17
+```
+
+**Supported positions:** `QB`, `RB`, `WR`, `TE`, `K`, `OFF`, `FLEX`, `DST`
+
+Output is saved to `scraper/fantasy_points/` as `fantasy_{POS}_week{N}_{YEAR}.csv`.
+
+### Fantasy PPR Converter
+
+Adjusts a fantasy points CSV by adding all reception (`Rec`) column values to the `Pts*` column, then writes the result back in place:
+
+```bash
+python converters/fantasy_points_ppr.py fantasy_WR_week12_2025
+python converters/fantasy_points_ppr.py fantasy_WR_week12_2025 fantasy_TE_week12_2025
+```
+
 ### CSV Converter
 
 Load scraped CSVs into pandas DataFrames:
@@ -81,8 +106,12 @@ football_analytics/
 ├── scraper/
 │   ├── player_scraper.py     # Scrapes individual player stats
 │   ├── season_scraper.py     # Scrapes season leaderboard stats
+│   ├── fantasy_scraper.py    # Scrapes weekly PPR fantasy points
 │   ├── player_output/        # CSV output from player scraper
-│   └── season_output/        # CSV output from season scraper
-├── csv_converter.py          # Loads CSV output into pandas DataFrames
+│   ├── season_output/        # CSV output from season scraper
+│   └── fantasy_points/       # CSV output from fantasy scraper
+├── converters/
+│   ├── csv_converter.py      # Loads CSV output into pandas DataFrames
+│   └── fantasy_points_ppr.py # Adds Rec values to Pts* column
 └── requirements.txt
 ```
