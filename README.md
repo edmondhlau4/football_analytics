@@ -33,7 +33,7 @@ Scrape stats for a specific NFL player:
 python scraper/player_scraper.py "Patrick Mahomes"
 ```
 
-Output is saved to `scraper/player_output/`.
+Output is saved to `scraper/player_career_output/`.
 
 ### Season Scraper
 
@@ -92,7 +92,7 @@ from csv_converter import load_all_season_csvs, load_all_player_csvs
 df = load_season_csv("scraper/season_output/passing_2025_regular-season.csv")
 
 # Load a player CSV into a dict of DataFrames (one per stat section)
-player_dfs = load_player_csv("scraper/player_output/patrick-mahomes.csv")
+player_dfs = load_player_csv("scraper/player_career_output/patrick-mahomes.csv")
 
 # Load all season or player CSVs at once
 season_data = load_all_season_csvs()
@@ -107,7 +107,7 @@ football_analytics/
 │   ├── player_scraper.py     # Scrapes individual player stats
 │   ├── season_scraper.py     # Scrapes season leaderboard stats
 │   ├── fantasy_scraper.py    # Scrapes weekly PPR fantasy points
-│   ├── player_output/        # CSV output from player scraper
+│   ├── player_career_output/        # CSV output from player scraper
 │   ├── season_output/        # CSV output from season scraper
 │   └── fantasy_points/       # CSV output from fantasy scraper
 ├── converters/

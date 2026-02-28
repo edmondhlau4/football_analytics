@@ -3,7 +3,7 @@
 Converts scraped NFL stats CSVs into pandas DataFrames.
 
 Season CSVs (scraper/season_output/):  flat table → single DataFrame per file
-Player CSVs (scraper/player_output/):  multi-section → dict of DataFrames per file
+Player CSVs (scraper/player_career_output/):  multi-section → dict of DataFrames per file
 
 Usage as a script:
   python csv_converter.py
@@ -19,7 +19,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.parent
 SEASON_OUTPUT_DIR = BASE_DIR / 'scraper' / 'season_output'
-PLAYER_OUTPUT_DIR = BASE_DIR / 'scraper' / 'player_output'
+player_career_output_DIR = BASE_DIR / 'scraper' / 'player_career_output'
 FANTASY_POINTS_DIR = BASE_DIR / 'scraper' / 'fantasy_points'
 
 
@@ -90,14 +90,14 @@ def load_all_fantasy_csvs() -> dict:
 
 def load_all_player_csvs() -> dict:
     """
-    Load all CSVs from scraper/player_output/.
+    Load all CSVs from scraper/player_career_output/.
     Returns a dict keyed by player slug (e.g., 'patrick_mahomes_stats').
     Each value is itself a dict of section_name -> DataFrame.
     """
-    if not PLAYER_OUTPUT_DIR.exists():
-        print(f"Directory not found: {PLAYER_OUTPUT_DIR}")
+    if not player_career_output_DIR.exists():
+        print(f"Directory not found: {player_career_output_DIR}")
         return {}
-    return {path.stem: load_player_csv(path) for path in sorted(PLAYER_OUTPUT_DIR.glob('*.csv'))}
+    return {path.stem: load_player_csv(path) for path in sorted(player_career_output_DIR.glob('*.csv'))}
 
 
 if __name__ == '__main__':
@@ -127,14 +127,14 @@ Examples:
 
     if args.list:
         season_files = sorted(SEASON_OUTPUT_DIR.glob('*.csv')) if SEASON_OUTPUT_DIR.exists() else []
-        player_files = sorted(PLAYER_OUTPUT_DIR.glob('*.csv')) if PLAYER_OUTPUT_DIR.exists() else []
+        player_files = sorted(player_career_output_DIR.glob('*.csv')) if player_career_output_DIR.exists() else []
         fantasy_files = sorted(FANTASY_POINTS_DIR.glob('*.csv')) if FANTASY_POINTS_DIR.exists() else []
         print("Season files (scraper/season_output/):")
         for f in season_files:
             print(f"  {f.stem}")
         if not season_files:
             print("  (none)")
-        print("\nPlayer files (scraper/player_output/):")
+        print("\nPlayer files (scraper/player_career_output/):")
         for f in player_files:
             print(f"  {f.stem}")
         if not player_files:
@@ -170,7 +170,7 @@ Examples:
         if args.player:
             print("=== Player Stats ===")
             for name in args.player:
-                path = PLAYER_OUTPUT_DIR / f"{name}.csv"
+                path = player_career_output_DIR / f"{name}.csv"
                 if not path.exists():
                     print(f"  File not found: {path}")
                     continue

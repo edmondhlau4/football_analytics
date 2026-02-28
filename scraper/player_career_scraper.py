@@ -321,7 +321,7 @@ def scrape_player_stats(player_url, soup=None, season_type='regular'):
                 print(f"{'='*60}\n")
 
                 # Write all collected sections to a single CSV
-                csv_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'player_output')
+                csv_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'player_career_output')
                 os.makedirs(csv_dir, exist_ok=True)
                 player_slug = re.sub(r'[^\w\s]', '', player_name).strip().lower().replace(' ', '_')
                 csv_path = os.path.join(csv_dir, f"{player_slug}_stats.csv")
