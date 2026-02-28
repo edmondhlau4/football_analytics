@@ -49,7 +49,7 @@ python scraper/season_scraper.py --stat receiving --season preseason
 
 **Supported season types:** `regular-season`, `preseason`, `postseason`
 
-Output is saved to `scraper/season_output/`.
+Output is saved to `scraper/season_stat_output/`.
 
 ### Fantasy Scraper
 
@@ -89,7 +89,7 @@ from csv_converter import load_season_csv, load_player_csv
 from csv_converter import load_all_season_csvs, load_all_player_csvs
 
 # Load a single season CSV into a DataFrame
-df = load_season_csv("scraper/season_output/passing_2025_regular-season.csv")
+df = load_season_csv("scraper/season_stat_output/passing_2025_regular-season.csv")
 
 # Load a player CSV into a dict of DataFrames (one per stat section)
 player_dfs = load_player_csv("scraper/player_career_output/patrick-mahomes.csv")
@@ -108,7 +108,7 @@ football_analytics/
 │   ├── season_scraper.py     # Scrapes season leaderboard stats
 │   ├── fantasy_scraper.py    # Scrapes weekly PPR fantasy points
 │   ├── player_career_output/        # CSV output from player scraper
-│   ├── season_output/        # CSV output from season scraper
+│   ├── season_stat_output/        # CSV output from season scraper
 │   └── fantasy_points/       # CSV output from fantasy scraper
 ├── converters/
 │   ├── csv_converter.py      # Loads CSV output into pandas DataFrames

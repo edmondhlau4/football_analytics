@@ -133,7 +133,7 @@ def scrape_season_stats(stat_type='passing', year=2025, season_type='regular-sea
     print(f"{'=' * 80}\n")
 
     # Write to CSV
-    csv_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'season_output')
+    csv_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'season_stat_output')
     os.makedirs(csv_dir, exist_ok=True)
     csv_filename = f"{stat_type}_{season_type}_{year}.csv"
     csv_path = os.path.join(csv_dir, csv_filename)
