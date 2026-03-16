@@ -12,89 +12,167 @@ import csv
 import os
 from urllib.parse import quote
 
+def _fetch_player_summary(url, headers):
+    """
+    Fetch a player page and extract name, position, and most recent NFL team.
+
+    Returns a dict with keys (name, position, team, url, soup) on a 200 response,
+    None on 404, or raises on other status codes.
+    """
+    response = requests.get(url, headers=headers, timeout=10)
+
+    if response.status_code == 404:
+        return None
+    if response.status_code == 403:
+        raise requests.exceptions.HTTPError(
+            f"Access forbidden (403). Try visiting manually: {url}"
+        )
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    # Player name
+    player_name = None
+    h1 = soup.find('h1')
+    if h1:
+        player_name = h1.text.strip()
+    if not player_name:
+        title = soup.find('title')
+        if title:
+            player_name = title.text.split('|')[0].strip()
+    if not player_name:
+        player_name = "Unknown"
+
+    # Position
+    position = None
+    position_tag = soup.find('b', string='Position:')
+    if position_tag:
+        pos_text = position_tag.next_sibling
+        if pos_text:
+            m = re.search(r'\s*([A-Z]+)', str(pos_text))
+            if m:
+                position = m.group(1).strip()
+
+    # Most recent NFL team — try several extraction strategies
+    team = None
+
+    def _clean_team(raw):
+        # Strip trailing 2-4 uppercase abbreviation letters that get concatenated
+        # when the <a> tag contains both a city name and an abbreviation span,
+        # e.g. "Kansas CityKC" -> "Kansas City", "PhiladelphiaPHI" -> "Philadelphia"
+        return re.sub(r'[A-Z]{2,4}$', '', raw).strip()
+
+    # Strategy 1: explicit <b>Team:</b> tag
+    team_b = soup.find('b', string=re.compile(r'^Team:$', re.I))
+    if team_b:
+        sib = team_b.next_sibling
+        if sib:
+            t = _clean_team(str(sib).strip().strip(','))
+            if t:
+                team = t
+
+    # Strategy 2: team link inside the player bio block
+    if not team:
+        bio = (soup.find('div', class_=re.compile(r'player.*info|bio', re.I))
+               or soup.find('div', id=re.compile(r'player.*info|bio', re.I)))
+        if bio:
+            team_link = bio.find('a', href=lambda h: h and '/teams/nfl/' in h)
+            if team_link:
+                team = _clean_team(team_link.get_text(strip=True))
+
+    # Strategy 3: first NFL team link in page content, skipping the nav menu
+    if not team:
+        nav = soup.find('nav')
+        for a in soup.find_all('a', href=lambda h: h and '/teams/nfl/' in h):
+            if nav and a in nav.descendants:
+                continue
+            t = _clean_team(a.get_text(strip=True))
+            if t:
+                team = t
+                break
+
+    return {'name': player_name, 'position': position, 'team': team,
+            'url': url, 'soup': soup}
+
+
 def search_player(player_name, season_type='regular'):
     """
-    Search for a player on footballdb.com by constructing direct URL
-    
+    Search for a player on footballdb.com by constructing direct URLs.
+
+    Checks suffixes 01-10 to find all players sharing the same name pattern.
+    If multiple are found, lists them with position and most recent NFL team
+    and prompts the user to pick one.
+
     Args:
         player_name: Name of the player to search for
         season_type: 'regular', 'preseason', 'postseason', or 'all'
     """
     print(f"\nSearching for: {player_name}...")
-    
-    # FootballDB uses URL format: /players/first-last-lastfif01
-    # Example: patrick-mahomes-mahompa01
-    # We'll construct possible URLs and try them
-    
-    headers = {
+
+    http_headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     }
-    
-    # Split the name
+
     name_parts = player_name.lower().strip().split()
-    
     if len(name_parts) < 2:
         print("Please provide both first and last name (e.g., 'Patrick Mahomes')")
         return
-    
+
     first_name = name_parts[0]
-    last_name = name_parts[-1]  # Use last word as last name
-    
-    # Generate the URL slug: firstname-lastname
+    last_name = name_parts[-1]
     url_slug = f"{first_name}-{last_name}"
-    
-    # Generate player ID: usually last name + first 2 letters of first name + 01
-    # Example: mahomes -> mahom + pa -> mahompa01
     last_name_part = last_name[:5] if len(last_name) >= 5 else last_name
     first_name_part = first_name[:2]
-    player_id = f"{last_name_part}{first_name_part}01"
-    
-    # Construct the full URL
-    player_url = f"https://www.footballdb.com/players/{url_slug}-{player_id}"
-    
-    print(f"Trying URL: {player_url}")
-    
+
+    # Probe all suffixes 01-10 to collect every matching player page
+    candidates = []
     try:
-        response = requests.get(player_url, headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            print(f"Found player page!")
-            scrape_player_stats(player_url, BeautifulSoup(response.content, 'html.parser'), season_type)
-        elif response.status_code == 404:
-            # Try alternative ID patterns
-            print(f"Player not found with ID '{player_id}', trying alternatives...")
-            
-            # Try different number suffixes
-            for num in ['02', '03', '04', '05']:
-                alt_player_id = f"{last_name_part}{first_name_part}{num}"
-                alt_url = f"https://www.footballdb.com/players/{url_slug}-{alt_player_id}"
-                
-                print(f"Trying: {alt_url}")
-                alt_response = requests.get(alt_url, headers=headers, timeout=10)
-                
-                if alt_response.status_code == 200:
-                    print(f"✓ Found player page!")
-                    scrape_player_stats(alt_url, BeautifulSoup(alt_response.content, 'html.parser'), season_type)
-                    return
-            
-            print(f"\nCould not find player '{player_name}' on footballdb.com")
-            print(f"Tips:")
-            print(f"   - Make sure you're using the exact spelling")
-            print(f"   - Try the player's full legal name")
-            print(f"   - Check if the player exists at: https://www.footballdb.com/")
-        elif response.status_code == 403:
-            print(f"Access forbidden (403 error)")
-            print(f"The website may be blocking automated requests")
-            print(f"   Try visiting the URL manually in a browser:")
-            print(f"   {player_url}")
-        else:
-            print(f"Error: Received status code {response.status_code}")
-            print(f"   URL: {player_url}")
-                
+        for num in range(1, 11):
+            suffix = f"{num:02d}"
+            player_id = f"{last_name_part}{first_name_part}{suffix}"
+            url = f"https://www.footballdb.com/players/{url_slug}-{player_id}"
+            print(f"  Checking {url} ...", end=' ', flush=True)
+            result = _fetch_player_summary(url, http_headers)
+            if result is None:
+                print("not found")
+            else:
+                print("found")
+                candidates.append(result)
+    except requests.exceptions.HTTPError as e:
+        print(f"\n{e}")
+        return
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching data: {e}")
-        print(f"Try checking your internet connection or visiting:")
-        print(f"   https://www.footballdb.com/")
+        print(f"\nError fetching data: {e}")
+        print("Check your internet connection or visit https://www.footballdb.com/")
+        return
+
+    if not candidates:
+        print(f"\nCould not find player '{player_name}' on footballdb.com")
+        print("Tips:")
+        print("   - Make sure you're using the exact spelling")
+        print("   - Try the player's full legal name")
+        print("   - Check if the player exists at: https://www.footballdb.com/")
+        return
+
+    if len(candidates) == 1:
+        scrape_player_stats(candidates[0]['url'], candidates[0]['soup'], season_type)
+        return
+
+    # Multiple players share this name — show a disambiguation list
+    print(f"\nFound {len(candidates)} players named '{player_name}':\n")
+    for i, c in enumerate(candidates, 1):
+        pos_str = c['position'] or 'Unknown position'
+        team_str = c['team'] or 'Unknown team'
+        print(f"  {i}. {c['name']}  |  {pos_str}  |  {team_str}")
+    print()
+
+    while True:
+        choice = input(f"Select a player (1-{len(candidates)}): ").strip()
+        if choice.isdigit() and 1 <= int(choice) <= len(candidates):
+            selected = candidates[int(choice) - 1]
+            scrape_player_stats(selected['url'], selected['soup'], season_type)
+            return
+        print(f"  Please enter a number between 1 and {len(candidates)}.")
 
 def scrape_player_stats(player_url, soup=None, season_type='regular'):
     """
