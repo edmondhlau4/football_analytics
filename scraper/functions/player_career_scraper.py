@@ -12,6 +12,10 @@ HTTP_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 }
 
+def _clean_team(raw):
+    return re.sub(r'[A-Z]{2,4}$', '', raw).strip()
+
+
 def _fetch_player_summary(url):
     response = requests.get(url, headers=HTTP_HEADERS, timeout=10)
 
@@ -46,9 +50,6 @@ def _fetch_player_summary(url):
                 position = m.group(1).strip()
 
     team = None
-
-    def _clean_team(raw):
-        return re.sub(r'[A-Z]{2,4}$', '', raw).strip()
 
     team_b = soup.find('b', string=re.compile(r'^Team:$', re.I))
     if team_b:
@@ -93,50 +94,66 @@ def resolve_player(player_name):
     first_name_part = first_name[:2]
 
     print(f"\nSearching for: {player_name}...")
-    candidates = []
-    try:
-        for num in range(1, 11):
-            suffix = f"{num:02d}"
-            player_id = f"{last_name_part}{first_name_part}{suffix}"
-            url = f"https://www.footballdb.com/players/{url_slug}-{player_id}"
-            print(f"  Checking {url} ...", end=' ', flush=True)
-            result = _fetch_player_summary(url)
-            if result is None:
-                print("not found")
-            else:
-                print("found")
-                candidates.append(result)
-    except requests.exceptions.HTTPError as e:
-        print(f"\n{e}")
-        return None
-    except requests.exceptions.RequestException as e:
-        print(f"\nError fetching data: {e}")
-        print("Check your internet connection or visit https://www.footballdb.com/")
-        return None
+    all_candidates = []
+    batch_start = 1
 
-    if not candidates:
+    while True:
+        batch_end = batch_start + 9
+        print(f"\n  Checking links {batch_start}-{batch_end}...")
+        batch_candidates = []
+        try:
+            for num in range(batch_start, batch_end + 1):
+                suffix = f"{num:02d}"
+                player_id = f"{last_name_part}{first_name_part}{suffix}"
+                url = f"https://www.footballdb.com/players/{url_slug}-{player_id}"
+                print(f"  Checking {url} ...", end=' ', flush=True)
+                result = _fetch_player_summary(url)
+                if result is None:
+                    print("not found")
+                else:
+                    print("found")
+                    batch_candidates.append(result)
+        except requests.exceptions.HTTPError as e:
+            print(f"\n{e}")
+            return None
+        except requests.exceptions.RequestException as e:
+            print(f"\nError fetching data: {e}")
+            print("Check your internet connection or visit https://www.footballdb.com/")
+            return None
+
+        all_candidates.extend(batch_candidates)
+
+        if not all_candidates:
+            print(f"\nNo players found in links 1-{batch_end}.")
+        else:
+            print(f"\nFound {len(all_candidates)} candidate(s) so far:\n")
+            for i, c in enumerate(all_candidates, 1):
+                pos_str = c['position'] or 'Unknown position'
+                team_str = c['team'] or 'Unknown team'
+                print(f"  {i}. {c['name']}  |  {pos_str}  |  {team_str}")
+            print()
+
+            if len(all_candidates) == 1:
+                cont = input("  Is this your player? [yes/no]: ").strip().lower()
+                if cont == 'yes':
+                    return all_candidates[0]
+            else:
+                choice = input(f"  Select a player (1-{len(all_candidates)}) or press Enter to search next 10: ").strip()
+                if choice.isdigit() and 1 <= int(choice) <= len(all_candidates):
+                    return all_candidates[int(choice) - 1]
+
+        cont = input(f"\n  Search next 10 links ({batch_end + 1}-{batch_end + 10})? [yes/no]: ").strip().lower()
+        if cont != 'yes':
+            break
+        batch_start = batch_end + 1
+
+    if not all_candidates:
         print(f"\nCould not find player '{player_name}' on footballdb.com")
         print("Tips:")
         print("   - Make sure you're using the exact spelling")
         print("   - Try the player's full legal name")
         print("   - Check if the player exists at: https://www.footballdb.com/")
-        return None
-
-    if len(candidates) == 1:
-        return candidates[0]
-
-    print(f"\nFound {len(candidates)} players named '{player_name}':\n")
-    for i, c in enumerate(candidates, 1):
-        pos_str = c['position'] or 'Unknown position'
-        team_str = c['team'] or 'Unknown team'
-        print(f"  {i}. {c['name']}  |  {pos_str}  |  {team_str}")
-    print()
-
-    while True:
-        choice = input(f"Select a player (1-{len(candidates)}): ").strip()
-        if choice.isdigit() and 1 <= int(choice) <= len(candidates):
-            return candidates[int(choice) - 1]
-        print(f"  Please enter a number between 1 and {len(candidates)}.")
+    return None
 
 
 def search_player(player_name, season_type='regular'):
@@ -276,10 +293,12 @@ def scrape_player_stats(player_url, soup=None, season_type='regular'):
                     if first_row:
                         headers = [th.text.strip() for th in first_row.find_all(['th', 'td'])]
 
+                team_column_index = -1
                 for idx, header in enumerate(headers):
-                    if header.lower() in ['lg', 'league']:
+                    if lg_column_index < 0 and header.lower() in ['lg', 'league']:
                         lg_column_index = idx
-                        break
+                    if header.lower() == 'team':
+                        team_column_index = idx
 
                 tbody = table.find('tbody')
                 if not tbody:
@@ -310,7 +329,10 @@ def scrape_player_stats(player_url, soup=None, season_type='regular'):
 
                     section_rows = []
                     for cells in nfl_rows:
-                        row_data = [cell.text.strip() for cell in cells[:15]]
+                        row_data = [
+                            _clean_team(cell.text.strip()) if i == team_column_index else cell.text.strip()
+                            for i, cell in enumerate(cells[:15])
+                        ]
                         print(" | ".join(row_data))
                         section_rows.append(row_data)
 

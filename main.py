@@ -15,6 +15,11 @@ from scraper.functions.player_season_scraper import resolve_player, scrape_game_
 from scraper.functions.season_stat_scraper import scrape_season_stats, STAT_TYPES, SEASON_TYPES
 from scraper.functions.fantasy_scraper import scrape_fantasy_points, POSITIONS
 from scraper.functions.team_season_splits_scraper import scrape_team_splits, STAT_TYPES as SPLITS_STAT_TYPES
+from converters.csv_converter import (
+    load_season_csv, load_player_csv, load_fantasy_csv,
+    load_all_season_csvs, load_all_player_csvs, load_all_fantasy_csvs,
+    season_stat_output_DIR, player_career_output_DIR, FANTASY_POINTS_DIR,
+)
 
 DIVIDER = "=" * 50
 
@@ -93,6 +98,74 @@ def run_fantasy_points():
     scrape_fantasy_points(int(year), pos, int(week))
 
 
+def run_csv_converter():
+    print(f"\n{DIVIDER}")
+    print("  CSV Converter")
+    print(DIVIDER)
+
+    csv_type = prompt("CSV type", choices=["season", "player", "fantasy"])
+
+    dir_map = {
+        "season": season_stat_output_DIR,
+        "player": player_career_output_DIR,
+        "fantasy": FANTASY_POINTS_DIR,
+    }
+    target_dir = dir_map[csv_type]
+
+    if not target_dir.exists():
+        print(f"  Directory not found: {target_dir}")
+        return
+
+    available = sorted(target_dir.glob("*.csv"))
+    if not available:
+        print(f"  No CSV files found in {target_dir}")
+        return
+
+    print(f"\n  Available files:")
+    for f in available:
+        print(f"    {f.stem}")
+
+    file_stem = prompt("File name (without .csv, or 'all' to load all)")
+
+    if file_stem == "all":
+        if csv_type == "season":
+            data = load_all_season_csvs()
+            for name, df in data.items():
+                print(f"\n{name}")
+                print(df.to_string(index=False))
+        elif csv_type == "player":
+            data = load_all_player_csvs()
+            for name, sections in data.items():
+                print(f"\n{name}")
+                for section_name, df in sections.items():
+                    print(f"  [{section_name}]")
+                    print(df.to_string(index=False))
+        else:
+            data = load_all_fantasy_csvs()
+            for name, df in data.items():
+                print(f"\n{name}")
+                print(df.to_string(index=False))
+    else:
+        path = target_dir / f"{file_stem}.csv"
+        if not path.exists():
+            print(f"  File not found: {path}")
+            return
+        if csv_type == "season":
+            df = load_season_csv(path)
+            print(f"\n{file_stem}")
+            print(df.to_string(index=False))
+        elif csv_type == "player":
+            sections = load_player_csv(path)
+            print(f"\n{file_stem}")
+            for section_name, df in sections.items():
+                print(f"  [{section_name}]")
+                print(df.to_string(index=False))
+        else:
+            df = load_fantasy_csv(path)
+            print(f"\n{file_stem}")
+            print(df.to_string(index=False))
+
+
 def main():
     print(f"\n{DIVIDER}")
     print("  Football Analytics")
@@ -104,6 +177,7 @@ def main():
         ("Season Leaderboard Stats", run_season_stats),
         ("Team Season Stat Splits",  run_team_splits),
         ("Weekly Fantasy Points",    run_fantasy_points),
+        ("CSV Converter",            run_csv_converter),
         ("Exit",                     None),
     ]
 
