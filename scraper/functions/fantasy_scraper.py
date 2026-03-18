@@ -124,7 +124,7 @@ def scrape_fantasy_points(year=2025, pos='QB', week=12):
     print(f"Source: {url}")
     print(f"{'=' * 80}\n")
 
-    csv_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fantasy_points')
+    csv_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'fantasy_points')
     os.makedirs(csv_dir, exist_ok=True)
     csv_filename = f"fantasy_{pos}_week{week}_{year}.csv"
     csv_path = os.path.join(csv_dir, csv_filename)

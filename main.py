@@ -14,6 +14,7 @@ from scraper.functions.player_career_scraper import search_player
 from scraper.functions.player_season_scraper import resolve_player, scrape_game_log, STAT_TYPES as GAME_LOG_STAT_TYPES, SEASON_TYPES as GAME_LOG_SEASON_TYPES
 from scraper.functions.season_stat_scraper import scrape_season_stats, STAT_TYPES, SEASON_TYPES
 from scraper.functions.fantasy_scraper import scrape_fantasy_points, POSITIONS
+from scraper.functions.team_season_splits_scraper import scrape_team_splits, STAT_TYPES as SPLITS_STAT_TYPES
 
 DIVIDER = "=" * 50
 
@@ -71,6 +72,17 @@ def run_season_stats():
     scrape_season_stats(stat, int(year), season)
 
 
+def run_team_splits():
+    print(f"\n{DIVIDER}")
+    print("  Team Season Stat Splits")
+    print(DIVIDER)
+    team = prompt("Team name (e.g. San Francisco 49ers, Chiefs)")
+    stat = prompt("Stat type", default="passing", choices=SPLITS_STAT_TYPES)
+    year = prompt("Year", default="2024")
+    opp = prompt("View opponent splits?", default="no", choices=["yes", "no"])
+    scrape_team_splits(team_name=team, stat_type=stat, year=int(year), opp=(opp == "yes"))
+
+
 def run_fantasy_points():
     print(f"\n{DIVIDER}")
     print("  Weekly Fantasy Points")
@@ -90,6 +102,7 @@ def main():
         ("Player Career Stats",      run_player_career),
         ("Player Season Game Log",   run_player_game_log),
         ("Season Leaderboard Stats", run_season_stats),
+        ("Team Season Stat Splits",  run_team_splits),
         ("Weekly Fantasy Points",    run_fantasy_points),
         ("Exit",                     None),
     ]

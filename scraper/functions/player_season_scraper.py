@@ -148,7 +148,7 @@ def scrape_game_log(player_url, player_name, year, stat_type, season_type):
     print(f"{'='*70}\n")
 
     csv_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                           'player_season_output')
+                           '..', 'player_season_output')
     os.makedirs(csv_dir, exist_ok=True)
     player_slug = (re.sub(r'[^\w\s]', '', player_name)
                    .strip().lower().replace(' ', '_'))
