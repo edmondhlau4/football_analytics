@@ -10,10 +10,10 @@ import os
 # Ensure the project root is on the path regardless of where this script is invoked from
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from scraper.player_career_scraper import search_player
-from scraper.player_season_scraper import resolve_player, scrape_game_log, STAT_TYPES as GAME_LOG_STAT_TYPES, SEASON_TYPES as GAME_LOG_SEASON_TYPES
-from scraper.season_stat_scraper import scrape_season_stats, STAT_TYPES, SEASON_TYPES
-from scraper.fantasy_scraper import scrape_fantasy_points, POSITIONS
+from scraper.functions.player_career_scraper import search_player
+from scraper.functions.player_season_scraper import resolve_player, scrape_game_log, STAT_TYPES as GAME_LOG_STAT_TYPES, SEASON_TYPES as GAME_LOG_SEASON_TYPES
+from scraper.functions.season_stat_scraper import scrape_season_stats, STAT_TYPES, SEASON_TYPES
+from scraper.functions.fantasy_scraper import scrape_fantasy_points, POSITIONS
 
 DIVIDER = "=" * 50
 

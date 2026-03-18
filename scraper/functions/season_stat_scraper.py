@@ -1,13 +1,4 @@
 #!/usr/bin/env python3
-"""
-NFL Weekly Fantasy Points Scraper for FootballDB.com
-Scrapes weekly fantasy football point totals by position.
-
-Usage:
-  python fantasy_scraper.py --year 2025 --pos QB --week 12
-  python fantasy_scraper.py --pos RB --week 1
-  python fantasy_scraper.py --year 2024 --pos WR --week 17
-"""
 
 import requests
 from bs4 import BeautifulSoup
@@ -15,16 +6,13 @@ import argparse
 import csv
 import os
 
-BASE_URL = "https://www.footballdb.com/fantasy-football/index.html"
+BASE_URL = "https://www.footballdb.com/statistics/nfl/player-stats"
 
-POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'OFF', 'FLEX', 'DST']
+STAT_TYPES = ['passing', 'rushing', 'receiving', 'scoring', 'defense', 'kicking', 'punting', 'returns']
+SEASON_TYPES = ['regular-season', 'preseason', 'postseason']
 
 
 def parse_player_cell(cell):
-    """
-    Extract (player_name, team) from a player name cell.
-    Player name comes from the <a> anchor, team from <span class="statplayer-team">.
-    """
     player_name = ''
     team = ''
 
@@ -33,20 +21,7 @@ def parse_player_cell(cell):
         title = link.get('title', '')
         player_name = title[:-6] if title.endswith(' Stats') else link.get_text(strip=True)
     else:
-        dst_link = cell.find('a', href=lambda h: h and 'teams/nfl/' in h and '/stats' in h)
-        if dst_link:
-            href = dst_link.get('href', '')
-            # Extract team name from href like "teams/nfl/{team_name}/stats"
-            parts = href.rstrip('/').split('/')
-            stats_idx = parts.index('stats') if 'stats' in parts else -1
-            raw = parts[stats_idx - 1] if stats_idx > 0 else cell.get_text(strip=True)
-            words = raw.replace('-', ' ').split()
-            if any('49ers' in w for w in words):
-                player_name = ' '.join(w.title() if i < 2 else w for i, w in enumerate(words))
-            else:
-                player_name = ' '.join(w.title() for w in words)
-        else:
-            player_name = cell.get_text(strip=True)
+        player_name = cell.get_text(strip=True)
 
     team_span = cell.find('span', class_='statplayer-team')
     if team_span:
@@ -55,9 +30,8 @@ def parse_player_cell(cell):
     return player_name, team
 
 
-def scrape_fantasy_points(year=2025, pos='QB', week=12):
-    params = f"yr={year}&pos={pos}&wk={week}"
-    url = f"{BASE_URL}?{params}"
+def scrape_season_stats(stat_type='passing', year=2025, season_type='regular-season'):
+    url = f"{BASE_URL}/{stat_type}/{year}/{season_type}"
 
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -84,8 +58,9 @@ def scrape_fantasy_points(year=2025, pos='QB', week=12):
 
     soup = BeautifulSoup(response.content, 'html.parser')
 
+    season_display = season_type.replace('-', ' ').title()
     print(f"\n{'=' * 80}")
-    print(f"  NFL {year} - Week {week} Fantasy Points - {pos}")
+    print(f"  NFL {year} {season_display} - {stat_type.title()} Statistics")
     print(f"{'=' * 80}\n")
 
     table = soup.find('table', class_='statistics')
@@ -97,7 +72,6 @@ def scrape_fantasy_points(year=2025, pos='QB', week=12):
         print(f"View page: {url}")
         return
 
-    # Parse column headers from the last row of <thead>
     col_headers = []
     thead = table.find('thead')
     if thead:
@@ -107,7 +81,6 @@ def scrape_fantasy_points(year=2025, pos='QB', week=12):
     if col_headers and 'Team' not in col_headers:
         col_headers = [col_headers[0], 'Team'] + col_headers[1:]
 
-    # Parse data rows from <tbody>
     tbody = table.find('tbody') or table
     rows = []
     for tr in tbody.find_all('tr'):
@@ -118,7 +91,7 @@ def scrape_fantasy_points(year=2025, pos='QB', week=12):
         if not cells:
             continue
         player_name, team = parse_player_cell(cells[0])
-        row_data = [player_name, team] + [cell.get_text(strip=True) for cell in cells[1:]] if pos != "DST" else [player_name] + [cell.get_text(strip=True) for cell in cells[1:]]
+        row_data = [player_name, team] + [cell.get_text(strip=True) for cell in cells[1:]]
         if any(row_data):
             rows.append(row_data)
 
@@ -127,7 +100,6 @@ def scrape_fantasy_points(year=2025, pos='QB', week=12):
         print(f"View page: {url}")
         return
 
-    # Print table
     if col_headers:
         header_line = " | ".join(col_headers)
         print(header_line)
@@ -141,10 +113,9 @@ def scrape_fantasy_points(year=2025, pos='QB', week=12):
     print(f"Source: {url}")
     print(f"{'=' * 80}\n")
 
-    # Write to CSV
-    csv_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fantasy_points')
+    csv_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'season_stat_output')
     os.makedirs(csv_dir, exist_ok=True)
-    csv_filename = f"fantasy_{pos}_week{week}_{year}.csv"
+    csv_filename = f"{stat_type}_{season_type}_{year}.csv"
     csv_path = os.path.join(csv_dir, csv_filename)
     with open(csv_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
@@ -156,26 +127,28 @@ def scrape_fantasy_points(year=2025, pos='QB', week=12):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Scrape NFL weekly fantasy football points from footballdb.com',
+        description='Scrape NFL season player statistics from footballdb.com',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python fantasy_scraper.py --year 2025 --pos QB --week 12
-  python fantasy_scraper.py --pos RB --week 1
-  python fantasy_scraper.py --year 2024 --pos WR --week 17
+  python season_scraper.py --stat passing --year 2025
+  python season_scraper.py --stat rushing --year 2024 --season regular-season
+  python season_scraper.py --stat receiving --season preseason
+  python season_scraper.py --stat defense --year 2023 --season postseason
 
-Positions: QB, RB, WR, TE, K, OFF, FLEX, DST
+Stat types:  passing, rushing, receiving, scoring, defense, kicking, punting, returns
+Season types: regular-season, preseason, postseason
         """
     )
+    parser.add_argument('--stat', '-s', default='passing', choices=STAT_TYPES,
+                        help='Stat category (default: passing)')
     parser.add_argument('--year', '-y', type=int, default=2025,
                         help='Season year (default: 2025)')
-    parser.add_argument('--pos', '-p', default='QB', choices=POSITIONS,
-                        help='Player position (default: QB)')
-    parser.add_argument('--week', '-w', type=int, default=1,
-                        help='Week number (default: 1)')
+    parser.add_argument('--season', default='regular-season', choices=SEASON_TYPES,
+                        help='Season type (default: regular-season)')
 
     args = parser.parse_args()
-    scrape_fantasy_points(args.year, args.pos, args.week)
+    scrape_season_stats(args.stat, args.year, args.season)
 
 
 if __name__ == "__main__":
